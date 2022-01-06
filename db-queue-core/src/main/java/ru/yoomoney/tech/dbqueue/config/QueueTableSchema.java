@@ -40,6 +40,8 @@ public class QueueTableSchema {
     @Nonnull
     private final String nextProcessAtField;
     @Nonnull
+    private final String inProcessField;
+    @Nonnull
     private final List<String> extFields;
 
     private QueueTableSchema(@Nonnull String idField,
@@ -50,7 +52,9 @@ public class QueueTableSchema {
                              @Nonnull String totalAttemptField,
                              @Nonnull String createdAtField,
                              @Nonnull String nextProcessAtField,
-                             @Nonnull List<String> extFields) {
+                             @Nonnull String inProcessField,
+                             @Nonnull List<String> extFields
+    ) {
         this.idField = removeSpecialChars(requireNonNull(idField));
         this.queueNameField = removeSpecialChars(requireNonNull(queueNameField));
         this.payloadField = removeSpecialChars(requireNonNull(payloadField));
@@ -59,6 +63,7 @@ public class QueueTableSchema {
         this.totalAttemptField = removeSpecialChars(requireNonNull(totalAttemptField));
         this.createdAtField = removeSpecialChars(requireNonNull(createdAtField));
         this.nextProcessAtField = removeSpecialChars(requireNonNull(nextProcessAtField));
+        this.inProcessField = removeSpecialChars(requireNonNull(inProcessField));
         this.extFields = requireNonNull(extFields).stream().map(QueueTableSchema::removeSpecialChars)
                 .collect(Collectors.toList());
     }
@@ -158,6 +163,9 @@ public class QueueTableSchema {
         return idField;
     }
 
+    @Nonnull
+    public String getInProcessField() { return inProcessField; }
+
     /**
      * Additional list of column names ({@code TEXT} type),
      * which are mapping onto {@link TaskRecord#getExtData()}.
@@ -185,6 +193,8 @@ public class QueueTableSchema {
         private String totalAttemptField = "total_attempt";
         private String createdAtField = "created_at";
         private String nextProcessAtField = "next_process_at";
+        private String inProcessAtField = "in_process";
+
         private List<String> extFields = new ArrayList<>();
 
         private Builder() {
@@ -235,9 +245,24 @@ public class QueueTableSchema {
             return this;
         }
 
+        public Builder withInProcess(String inProcessAtField) {
+            this.inProcessAtField = inProcessAtField;
+            return this;
+        }
+
         public QueueTableSchema build() {
-            return new QueueTableSchema(idField, queueNameField, payloadField, attemptField, reenqueueAttemptField,
-                    totalAttemptField, createdAtField, nextProcessAtField, extFields);
+            return new QueueTableSchema(
+                    idField
+                    , queueNameField
+                    , payloadField
+                    , attemptField
+                    , reenqueueAttemptField
+                    , totalAttemptField
+                    , createdAtField
+                    , nextProcessAtField
+                    , inProcessAtField
+                    , extFields
+            );
         }
     }
 }

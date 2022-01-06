@@ -11,12 +11,14 @@ import ru.yoomoney.tech.dbqueue.api.EnqueueParams;
 import ru.yoomoney.tech.dbqueue.api.TaskRecord;
 import ru.yoomoney.tech.dbqueue.config.QueueTableSchema;
 import ru.yoomoney.tech.dbqueue.dao.QueueDao;
+import ru.yoomoney.tech.dbqueue.dao.QueueInProcessDao;
 import ru.yoomoney.tech.dbqueue.dao.QueuePickTaskDao;
 import ru.yoomoney.tech.dbqueue.settings.FailRetryType;
 import ru.yoomoney.tech.dbqueue.settings.FailureSettings;
 import ru.yoomoney.tech.dbqueue.settings.QueueId;
 import ru.yoomoney.tech.dbqueue.settings.QueueLocation;
 
+import javax.annotation.Nonnull;
 import java.math.BigInteger;
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -64,7 +66,7 @@ public abstract class QueuePickTaskDaoTest {
     }
 
     @Test
-    public void should_not_pick_task_too_early() throws Exception {
+    public void should_not_pick_task_too_early() {
         QueueLocation location = generateUniqueLocation();
         executeInTransaction(() ->
                 queueDao.enqueue(location, new EnqueueParams<String>().withExecutionDelay(Duration.ofHours(1))));
@@ -76,7 +78,7 @@ public abstract class QueuePickTaskDaoTest {
     }
 
     @Test
-    public void pick_task_should_return_all_fields() throws Exception {
+    public void pick_task_should_return_all_fields() {
         QueueLocation location = generateUniqueLocation();
         String payload = "{}";
         ZonedDateTime beforeEnqueue = ZonedDateTime.now().minusMinutes(1L);
@@ -121,7 +123,7 @@ public abstract class QueuePickTaskDaoTest {
 
         for (int attempt = 1; attempt < 10; attempt++) {
             beforePickingTask = ZonedDateTime.now();
-            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId);
+            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId, location);
             afterPickingTask = ZonedDateTime.now();
             Assert.assertThat(taskRecord.getAttemptsCount(), equalTo((long) attempt));
             Assert.assertThat(taskRecord.getNextProcessAt().isAfter(beforePickingTask.plus(expectedDelay.minus(WINDOWS_OS_DELAY))), equalTo(true));
@@ -149,7 +151,7 @@ public abstract class QueuePickTaskDaoTest {
 
         for (int attempt = 1; attempt < 10; attempt++) {
             beforePickingTask = ZonedDateTime.now();
-            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId);
+            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId, location);
             afterPickingTask = ZonedDateTime.now();
             Assert.assertThat(taskRecord.getAttemptsCount(), equalTo((long) attempt));
             Assert.assertThat(taskRecord.getNextProcessAt().isAfter(beforePickingTask.plus(expectedDelay.minus(WINDOWS_OS_DELAY))), equalTo(true));
@@ -173,7 +175,7 @@ public abstract class QueuePickTaskDaoTest {
 
         for (int attempt = 1; attempt < 10; attempt++) {
             beforePickingTask = ZonedDateTime.now();
-            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId);
+            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId, location);
             afterPickingTask = ZonedDateTime.now();
             expectedDelay = Duration.ofMinutes(1 + (attempt - 1) * 2);
             Assert.assertThat(taskRecord.getAttemptsCount(), equalTo((long) attempt));
@@ -198,7 +200,7 @@ public abstract class QueuePickTaskDaoTest {
 
         for (int attempt = 1; attempt < 10; attempt++) {
             beforePickingTask = ZonedDateTime.now();
-            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId);
+            taskRecord = resetProcessTimeAndPick(pickTaskDao, enqueueId, location);
             afterPickingTask = ZonedDateTime.now();
             expectedDelay = Duration.ofMinutes(BigInteger.valueOf(2L).pow(attempt - 1).longValue());
             Assert.assertThat(taskRecord.getAttemptsCount(), equalTo((long) attempt));
@@ -207,7 +209,7 @@ public abstract class QueuePickTaskDaoTest {
         }
     }
 
-    private TaskRecord resetProcessTimeAndPick(QueuePickTaskDao pickTaskDao, Long enqueueId) {
+    private TaskRecord resetProcessTimeAndPick(QueuePickTaskDao pickTaskDao, Long enqueueId, QueueLocation location) {
         executeInTransaction(() -> {
             jdbcTemplate.update("update " + tableName +
                     " set " + tableSchema.getNextProcessAtField() + "= " + currentTimeSql() + " where " + tableSchema.getIdField() + "=" + enqueueId);
@@ -217,6 +219,10 @@ public abstract class QueuePickTaskDaoTest {
         while (taskRecord == null) {
             taskRecord = executeInTransaction(
                     pickTaskDao::pickTask);
+
+            if (queueDao instanceof QueueInProcessDao) {
+                ((QueueInProcessDao) queueDao).release(location, enqueueId);
+            }
             try {
                 Thread.sleep(20);
             } catch (InterruptedException e) {
@@ -236,7 +242,7 @@ public abstract class QueuePickTaskDaoTest {
     protected void executeInTransaction(Runnable runnable) {
         transactionTemplate.execute(new TransactionCallbackWithoutResult() {
             @Override
-            protected void doInTransactionWithoutResult(TransactionStatus status) {
+            protected void doInTransactionWithoutResult(@Nonnull TransactionStatus status) {
                 runnable.run();
             }
         });

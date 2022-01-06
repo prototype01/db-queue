@@ -30,8 +30,10 @@ dependencies {
             'org.testcontainers:oracle-xe:1.16.0',
             'com.oracle.ojdbc:ojdbc8:19.3.0.0',
 
-            'com.h2database:h2:1.4.200'
+            'com.h2database:h2:1.4.200',
 
+            'org.testcontainers:mysql:1.16.0',
+            'mysql:mysql-connector-java:8.0.27'
 
     testCompileOnly 'com.google.code.findbugs:jsr305:3.0.1',
             'com.google.code.findbugs:annotations:3.0.1'

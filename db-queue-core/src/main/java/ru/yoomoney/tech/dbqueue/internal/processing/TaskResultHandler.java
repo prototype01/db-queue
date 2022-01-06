@@ -2,7 +2,9 @@ package ru.yoomoney.tech.dbqueue.internal.processing;
 
 import ru.yoomoney.tech.dbqueue.api.TaskExecutionResult;
 import ru.yoomoney.tech.dbqueue.api.TaskRecord;
+import ru.yoomoney.tech.dbqueue.config.DatabaseAccessLayer;
 import ru.yoomoney.tech.dbqueue.config.QueueShard;
+import ru.yoomoney.tech.dbqueue.dao.QueueInProcessDao;
 import ru.yoomoney.tech.dbqueue.settings.QueueLocation;
 import ru.yoomoney.tech.dbqueue.settings.ReenqueueSettings;
 
@@ -65,6 +67,15 @@ public class TaskResultHandler {
                                         () -> reenqueueRetryStrategy.calculateDelay(taskRecord))));
                 return;
             case FAIL:
+                // prevent multi instance duplicate picking processing
+                if (queueShard.getDatabaseAccessLayer().getQueueDao() instanceof QueueInProcessDao) {
+                    queueShard.getDatabaseAccessLayer()
+                            .transact(() ->
+                                    ((QueueInProcessDao) queueShard.getDatabaseAccessLayer().getQueueDao())
+                                            .release(location, taskRecord.getId())
+                            );
+                }
+
                 return;
 
             default:

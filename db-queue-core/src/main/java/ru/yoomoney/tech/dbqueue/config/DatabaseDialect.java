@@ -13,10 +13,12 @@ public enum DatabaseDialect {
      * PostgreSQL (version equals or higher than 9.5).
      */
     POSTGRESQL,
+
     /**
      * Microsoft SQL Server
      */
     MSSQL,
+
     /**
      * Oracle 11g
      * <p>
@@ -29,5 +31,10 @@ public enum DatabaseDialect {
     /**
      * H2 in-memory database
      */
-    H2
+    H2,
+
+    /**
+     * Mysql (version equals or higher than 5.x)
+     */
+    MYSQL
 }
